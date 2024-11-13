@@ -127,6 +127,8 @@ public:
         return health > 0;
     }
 
+    virtual int getDamagePotential() const = 0;
+
     virtual void attack(Character& target) = 0;
 
     virtual void castSpell(Spell& spell, Character& target) = 0;
@@ -200,6 +202,10 @@ public:
         }
     }
 
+    int getDamagePotential() const override {
+        return strength + (level * 2);
+    }
+
     ~Warrior() {
         delete heavySlash;
         delete smite;
@@ -255,6 +261,10 @@ public:
         Character::display();
     }
 
+    int getDamagePotential() const override {
+        return dexterity + (level * 1);
+    }
+
     ~Archer() {
         delete powerShot;
         delete bearTrap;
@@ -308,6 +318,11 @@ public:
     void display() const override {
         cout << "Mage: " << name << endl;
         Character::display();
+    }
+
+    
+    int getDamagePotential() const override {
+        return intelligence + (level * 3);
     }
 
     ~Mage() {
@@ -417,6 +432,13 @@ Character* createCharacter() {
     return character;
 }
 
+enum class FocusStrategy {
+    LowestHP,
+    HighestHP,
+    LowestDamage,
+    HighestDamage
+};
+
 class BattleGraph {
 private:
     map<Character*, vector<Character*>> adjList;
@@ -429,6 +451,51 @@ public:
     void addEdge(Character* c1, Character* c2) {
         adjList[c1].push_back(c2);
         adjList[c2].push_back(c1);
+    }
+
+    // Динамічне створення зв'язків на основі стратегії
+    void createEdgesBasedOnCriteria(vector<Character*>& group1, vector<Character*>& group2, FocusStrategy strategy) {
+        for (Character* c1 : group1) {
+            Character* target = nullptr;
+
+            // Вибір цілі на основі обраної стратегії
+            for (Character* c2 : group2) {
+                if (!c2->isAlive()) continue;
+
+                if (!target) {
+                    target = c2;
+                    continue;
+                }
+
+                switch (strategy) {
+                    case FocusStrategy::LowestHP:
+                        if (c2->getHealth() < target->getHealth()) {
+                            target = c2;
+                        }
+                        break;
+                    case FocusStrategy::HighestHP:
+                        if (c2->getHealth() > target->getHealth()) {
+                            target = c2;
+                        }
+                        break;
+                    case FocusStrategy::LowestDamage:
+                        if (c2->getDamagePotential() < target->getDamagePotential()) {
+                            target = c2;
+                        }
+                        break;
+                    case FocusStrategy::HighestDamage:
+                        if (c2->getDamagePotential() > target->getDamagePotential()) {
+                            target = c2;
+                        }
+                        break;
+                }
+            }
+
+            // Створюємо зв'язок лише з обраною ціллю
+            if (target) {
+                addEdge(c1, target);
+            }
+        }
     }
 
     vector<Character*> getNeighbors(Character* character) {
@@ -451,7 +518,44 @@ public:
     }
 };
 
-void battleSimulation(vector<Character*>& group1, vector<Character*>& group2, int rounds) {
+
+Character* findTarget(Character* attacker, const vector<Character*>& enemies, FocusStrategy strategy) {
+    Character* target = nullptr;
+    for (Character* enemy : enemies) {
+        if (!enemy->isAlive()) continue;
+
+        if (!target) {
+            target = enemy;
+            continue;
+        }
+
+        switch (strategy) {
+            case FocusStrategy::LowestHP:
+                if (enemy->getHealth() < target->getHealth()) {
+                    target = enemy;
+                }
+                break;
+            case FocusStrategy::HighestHP:
+                if (enemy->getHealth() > target->getHealth()) {
+                    target = enemy;
+                }
+                break;
+            case FocusStrategy::LowestDamage:
+                if (enemy->getDamagePotential() < target->getDamagePotential()) {
+                    target = enemy;
+                }
+                break;
+            case FocusStrategy::HighestDamage:
+                if (enemy->getDamagePotential() > target->getDamagePotential()) {
+                    target = enemy;
+                }
+                break;
+        }
+    }
+    return target;
+}
+
+void battleSimulation(BattleGraph& graph, vector<Character*>& group1, vector<Character*>& group2, FocusStrategy strategy, int rounds) {
     int group1Wins = 0;
     int group2Wins = 0;
 
@@ -460,73 +564,69 @@ void battleSimulation(vector<Character*>& group1, vector<Character*>& group2, in
     for (int i = 0; i < rounds; ++i) {
         cout << "\nRound " << i + 1 << endl;
 
+        // Відновлення здоров'я персонажів перед новим раундом
         for (Character* c : group1) c->resetHealth();
         for (Character* c : group2) c->resetHealth();
 
         bool roundOver = false;
 
         while (!roundOver) {
-            //Group 1 turn
+            // Хід групи 1
             for (Character* attacker : group1) {
-                if (!attacker || !attacker->isAlive()) continue;  // Skip dead attackers
+                if (!attacker || !attacker->isAlive()) continue;
 
-                Character* defender = nullptr;
-                for (Character* possibleDefender : group2) {
-                    if (possibleDefender && possibleDefender->isAlive()) {
-                        defender = possibleDefender;
-                        break;
-                    }
-                }
+                // Знайти динамічну ціль на основі стратегії
+                Character* defender = findTarget(attacker, group2, strategy);
 
+                // Якщо захисника не знайдено, група 1 виграє раунд
                 if (!defender) {
                     group1Wins++;
                     roundOver = true;
                     break;
                 }
 
+                // Атакуємо захисника
                 attacker->attack(*defender);
                 if (!defender->isAlive()) {
-                    break;
+                    continue;
                 }
 
-                // Random chance to cast a spell
+                // Випадковий шанс використати заклинання
                 if (!attacker->getAvailableSpells().empty() && rand() % 2 == 0 && attacker->getMana() >= attacker->getAvailableSpells()[0].getManaCost()) {
                     attacker->castSpell(attacker->getAvailableSpells()[0], *defender);
                     if (!defender->isAlive()) {
-                        break;
+                        continue;
                     }
                 }
             }
 
             if (roundOver) break;
 
-            //Group 2 turn
+            // Хід групи 2
             for (Character* attacker : group2) {
                 if (!attacker || !attacker->isAlive()) continue;
 
-                Character* defender = nullptr;
-                for (Character* possibleDefender : group1) {
-                    if (possibleDefender && possibleDefender->isAlive()) {
-                        defender = possibleDefender;
-                        break;
-                    }
-                }
+                // Знайти динамічну ціль на основі стратегії
+                Character* defender = findTarget(attacker, group1, strategy);
 
+                // Якщо захисника не знайдено, група 2 виграє раунд
                 if (!defender) {
                     group2Wins++;
                     roundOver = true;
                     break;
                 }
 
+                // Атакуємо захисника
                 attacker->attack(*defender);
                 if (!defender->isAlive()) {
-                    break;
+                    continue;
                 }
 
+                // Випадковий шанс використати заклинання
                 if (!attacker->getAvailableSpells().empty() && rand() % 2 == 0 && attacker->getMana() >= attacker->getAvailableSpells()[0].getManaCost()) {
                     attacker->castSpell(attacker->getAvailableSpells()[0], *defender);
                     if (!defender->isAlive()) {
-                        break; 
+                        continue;
                     }
                 }
             }
@@ -546,12 +646,33 @@ void battleSimulation(vector<Character*>& group1, vector<Character*>& group2, in
     cin.get();
 }
 
+FocusStrategy chooseFocusStrategy() {
+    cout << "Choose criteria for characters to foccus their attck on:\n";
+    cout << "1. Least HP\n";
+    cout << "2. Most HP\n";
+    cout << "3. least Damage\n";
+    cout << "4. Most Damage\n";
+    int choice;
+    cin >> choice;
+    switch (choice) {
+        case 1: return FocusStrategy::LowestHP;
+        case 2: return FocusStrategy::HighestHP;
+        case 3: return FocusStrategy::LowestDamage;
+        case 4: return FocusStrategy::HighestDamage;
+        default: 
+            cout << "Невірний вибір. Використовуємо за замовчуванням (Найменший HP).\n";
+            return FocusStrategy::LowestHP;
+    }
+}
+
 void mainMenu() {
     CharacterManager manager;
 
+    BattleGraph graph;
+    vector<Character*> group1, group2;
+
     int choice;
-    vector<Character*> group1;
-    vector<Character*> group2;
+    FocusStrategy strategy = FocusStrategy::LowestHP;
 
     cout << "Welcome to the Battle Simulation!\n";
     cout << "You can create characters for 2 grops and simulate battles between them!\n";
@@ -561,8 +682,9 @@ void mainMenu() {
         cout << "2. Create character for Group 2\n";
         cout << "3. Display all characters\n";
         cout << "4. Set up and run battle simulation\n";
-        cout << "5. Exit\n";
-        choice = getValidatedInput("Enter your choice: ", 1, 5);
+        cout << "5. Choose strategy\n";
+        cout << "6. Exit\n";
+        choice = getValidatedInput("Enter your choice: ", 1, 6);
 
         switch (choice) {
         case 1: {
@@ -593,15 +715,18 @@ void mainMenu() {
                 cout << "Both groups must have at least one character to start the battle!\n";
             } else {
                 int rounds = getValidatedInput("Enter the number of rounds for the battle: ", 1, 100);  // Could be more
-                battleSimulation(group1, group2, rounds);
+                battleSimulation(graph, group1, group2, strategy, rounds);
             }
             break;
         }
         case 5:
+                strategy = chooseFocusStrategy();
+                break;
+        case 6:
             cout << "Exiting the program. Goodbye!\n";
             break;
         }
-    } while (choice != 5);
+    } while (choice != 6);
 }
 
 int main() {
