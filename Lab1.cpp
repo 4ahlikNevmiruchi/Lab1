@@ -34,10 +34,13 @@ public:
     void display() const override {
         cout << "Weapon: " << name << ", Damage Bonus: " << damageBonus << endl;
     }
-};
 
-const vector<pair<string, int>> weaponList = {
-    {"Iron Sword", 5}, {"Steel Axe", 7}, {"Long Bow", 6}, {"Magic Staff", 8}, {"Dagger", 4}
+    static const vector<pair<string, int>>& getWeaponList() {
+        static const vector<pair<string, int>> weaponList = {
+            {"Iron Sword", 5}, {"Steel Axe", 7}, {"Long Bow", 6}, {"Magic Staff", 8}, {"Dagger", 4}
+        };
+        return weaponList;
+    }
 };
 
 class Armor : public Equipment {
@@ -60,10 +63,13 @@ public:
     void display() const override {
         cout << "Armor: " << name << ", Defense Bonus: " << defenseBonus << endl;
     }
-};
 
-const vector<pair<string, int>> armorList = {
-    {"Leather Armor", 3}, {"Chainmail", 5}, {"Plate Armor", 7}, {"Mage Robes", 2}, {"Cloak", 1}
+    static const vector<pair<string, int>>& getArmorList() {
+        static const vector<pair<string, int>> armorList = {
+            {"Leather Armor", 3}, {"Chainmail", 5}, {"Plate Armor", 7}, {"Mage Robes", 2}, {"Cloak", 1}
+        };
+        return armorList;
+    }
 };
 
 class Spell {
@@ -113,14 +119,19 @@ public:
 
     virtual void setStatsByClass() = 0;
 
-    void takeDamage(int damage) {
+    string takeDamage(int damage) {
         int actualDamage = damage;
         if (armor) {
             actualDamage = armor->reduceDamage(damage);
         }
         health -= actualDamage;
         if (health < 0) health = 0;
-        cout << name << " takes " << actualDamage << " damage. Health is now " << health << ".\n";
+
+        string log = name + " takes " + to_string(actualDamage) + " damage. Health is now " + to_string(health) + ".";
+        if (health == 0) {
+            log += " " + name + " dies!";
+        }
+        return log;
     }
 
     bool isAlive() const {
@@ -129,11 +140,11 @@ public:
 
     virtual int getDamagePotential() const = 0;
 
-    virtual void attack(Character& target) = 0;
+    virtual string attack(Character& target) = 0;
 
-    virtual void castSpell(Spell& spell, Character& target) = 0;
+    virtual string castSpell(Spell& spell, Character& target) = 0;
 
-    vector<Spell> getAvailableSpells() {
+    const vector<Spell>& getAvailableSpells() const {
         return spells;
     }
 
@@ -183,22 +194,22 @@ public:
         mana = maxMana;
     }
 
-    void attack(Character& target) override {
+    string attack(Character& target) override {
         int damage = strength + (level * 2);
         if (weapon) {
             damage += weapon->getDamageBonus();
         }
-        cout << name << " swings a sword at " << target.getName() << ", dealing " << damage << " damage!" << endl;
         target.takeDamage(damage);
+        return name + " swings a sword at " + target.getName() + ", dealing " + to_string(damage) + " damage!";
     }
 
-    void castSpell(Spell& spell, Character& target) override {
+    string castSpell(Spell& spell, Character& target) override {
         if (mana >= spell.getManaCost()) {
             mana -= spell.getManaCost();
-            cout << name << " casts " << spell.getName() << " on " << target.getName() << ", dealing " << spell.getDamage() << " damage!" << endl;
             target.takeDamage(spell.getDamage());
+            return name + " casts " + spell.getName() + " on " + target.getName() + ", dealing " + to_string(spell.getDamage()) + " damage!";
         } else {
-            cout << name << " doesn't have enough mana to cast " << spell.getName() << "!" << endl;
+            return name + " doesn't have enough mana to cast " + spell.getName() + "!";
         }
     }
 
@@ -237,22 +248,22 @@ public:
         mana = maxMana;
     }
 
-    void attack(Character& target) override {
+    string attack(Character& target) override {
         int damage = dexterity + (level * 1);
         if (weapon) {
             damage += weapon->getDamageBonus();
         }
-        cout << name << " shoots an arrow at " << target.getName() << ", dealing " << damage << " damage!" << endl;
         target.takeDamage(damage);
+        return name + " shoots an arrow at " + target.getName() + ", dealing " + to_string(damage) + " damage!";
     }
 
-    void castSpell(Spell& spell, Character& target) override {
+    string castSpell(Spell& spell, Character& target) override {
         if (mana >= spell.getManaCost()) {
             mana -= spell.getManaCost();
-            cout << name << " casts " << spell.getName() << " on " << target.getName() << ", dealing " << spell.getDamage() << " damage!" << endl;
             target.takeDamage(spell.getDamage());
+        return name + " casts " + spell.getName() + " on " + target.getName() + ", dealing " + to_string(spell.getDamage()) + " damage!";
         } else {
-            cout << name << " doesn't have enough mana to cast " << spell.getName() << "!" << endl;
+            return name + " doesn't have enough mana to cast " + spell.getName() + "!";
         }
     }
 
@@ -296,22 +307,22 @@ public:
         mana = maxMana;
     }
 
-    void attack(Character& target) override {
+    string attack(Character& target) override {
         int damage = intelligence + (level * 3);
         if (weapon) {
             damage += weapon->getDamageBonus(); 
         }
-        cout << name << " attacks " << target.getName() << ", dealing " << damage << " damage!" << endl;
         target.takeDamage(damage);
+        return name + " shoots a firebolt at " + target.getName() + ", dealing " + to_string(damage) + " damage!";
     }
 
-    void castSpell(Spell& spell, Character& target) override {
+    string castSpell(Spell& spell, Character& target) override {
         if (mana >= spell.getManaCost()) {
             mana -= spell.getManaCost();
-            cout << name << " casts " << spell.getName() << " on " << target.getName() << ", dealing " << spell.getDamage() << " damage!" << endl;
             target.takeDamage(spell.getDamage());
+        return name + " casts " + spell.getName() + " on " + target.getName() + ", dealing " + to_string(spell.getDamage()) + " damage!";
         } else {
-            cout << name << " doesn't have enough mana to cast " << spell.getName() << "!" << endl;
+            return name + " doesn't have enough mana to cast " + spell.getName() + "!";
         }
     }
 
@@ -328,48 +339,6 @@ public:
     ~Mage() {
         delete iceShard;
         delete fireBlast;
-    }
-};
-
-class CharacterManager {
-private:
-    vector<Character*> characters;
-
-public:
-    ~CharacterManager() {
-        for (Character* character : characters) {
-            delete character;
-        }
-        characters.clear();
-    }
-
-    void addCharacter(Character* character) {
-        characters.push_back(character);
-    }
-
-    void displayGroupedCharacters(const vector<Character*>& group1, const vector<Character*>& group2) const {
-        cout << "\n--- Group 1 ---\n";
-        for (const Character* character : group1) {
-            character->display();
-            cout << endl;
-        }
-
-        cout << "\n--- Group 2 ---\n";
-        for (const Character* character : group2) {
-            character->display();
-            cout << endl;
-        }
-    }
-
-    size_t getCharacterCount() const {
-        return characters.size();
-    }
-
-    Character* getCharacter(size_t index) const {
-        if (index < characters.size()) {
-            return characters[index];
-        }
-        return nullptr;
     }
 };
 
@@ -403,6 +372,7 @@ Character* createCharacter() {
     Weapon* weapon = nullptr;
     int addWeapon = getValidatedInput("Do you want to add a weapon? (1 for Yes, 0 for No): ", 0, 1);
     if (addWeapon == 1) {
+        const auto& weaponList = Weapon::getWeaponList();
         int randomIndex = rand() % weaponList.size();
         weapon = new Weapon(weaponList[randomIndex].first, weaponList[randomIndex].second);
         cout << "Assigned weapon: " << weaponList[randomIndex].first << " (Damage Bonus: " << weaponList[randomIndex].second << ")\n";
@@ -411,6 +381,7 @@ Character* createCharacter() {
     Armor* armor = nullptr;
     int addArmor = getValidatedInput("Do you want to add armor? (1 for Yes, 0 for No): ", 0, 1);
     if (addArmor == 1) {
+        const auto& armorList = Armor::getArmorList();
         int randomIndex = rand() % armorList.size();
         armor = new Armor(armorList[randomIndex].first, armorList[randomIndex].second);
         cout << "Assigned armor: " << armorList[randomIndex].first << " (Defense Bonus: " << armorList[randomIndex].second << ")\n";
@@ -438,86 +409,6 @@ enum class FocusStrategy {
     LowestDamage,
     HighestDamage
 };
-
-class BattleGraph {
-private:
-    map<Character*, vector<Character*>> adjList;
-
-public:
-    void addCharacter(Character* character) {
-        adjList[character] = vector<Character*>();
-    }
-
-    void addEdge(Character* c1, Character* c2) {
-        adjList[c1].push_back(c2);
-        adjList[c2].push_back(c1);
-    }
-
-    // Динамічне створення зв'язків на основі стратегії
-    void createEdgesBasedOnCriteria(vector<Character*>& group1, vector<Character*>& group2, FocusStrategy strategy) {
-        for (Character* c1 : group1) {
-            Character* target = nullptr;
-
-            // Вибір цілі на основі обраної стратегії
-            for (Character* c2 : group2) {
-                if (!c2->isAlive()) continue;
-
-                if (!target) {
-                    target = c2;
-                    continue;
-                }
-
-                switch (strategy) {
-                    case FocusStrategy::LowestHP:
-                        if (c2->getHealth() < target->getHealth()) {
-                            target = c2;
-                        }
-                        break;
-                    case FocusStrategy::HighestHP:
-                        if (c2->getHealth() > target->getHealth()) {
-                            target = c2;
-                        }
-                        break;
-                    case FocusStrategy::LowestDamage:
-                        if (c2->getDamagePotential() < target->getDamagePotential()) {
-                            target = c2;
-                        }
-                        break;
-                    case FocusStrategy::HighestDamage:
-                        if (c2->getDamagePotential() > target->getDamagePotential()) {
-                            target = c2;
-                        }
-                        break;
-                }
-            }
-
-            // Створюємо зв'язок лише з обраною ціллю
-            if (target) {
-                addEdge(c1, target);
-            }
-        }
-    }
-
-    vector<Character*> getNeighbors(Character* character) {
-        return adjList[character];
-    }
-
-    void displayGraph() {
-        cout << "Граф взаємодій персонажів:" << endl;
-        for (const auto& pair : adjList) {
-            cout << pair.first->getName() << " взаємодіє з: ";
-            if (pair.second.empty()) {
-                cout << "немає взаємодій";
-            } else {
-                for (Character* neighbor : pair.second) {
-                    cout << neighbor->getName() << " ";
-                }
-            }
-            cout << endl;
-        }
-    }
-};
-
 
 Character* findTarget(Character* attacker, const vector<Character*>& enemies, FocusStrategy strategy) {
     Character* target = nullptr;
@@ -555,78 +446,134 @@ Character* findTarget(Character* attacker, const vector<Character*>& enemies, Fo
     return target;
 }
 
-void battleSimulation(BattleGraph& graph, vector<Character*>& group1, vector<Character*>& group2, FocusStrategy strategy, int rounds) {
+class BattleGraph {
+private:
+    map<Character*, vector<Character*>> adjList;
+
+public:
+    void addCharacter(Character* character) {
+        adjList[character] = vector<Character*>();
+    }
+
+    void addEdge(Character* c1, Character* c2) {
+        adjList[c1].push_back(c2);
+    }
+
+    void createEdgesBasedOnCriteria(vector<Character*>& group1, vector<Character*>& group2, FocusStrategy strategy) {
+        adjList.clear();
+
+        for (Character* c1 : group1) {
+            Character* target = findTarget(c1, group2, strategy);
+            if (target) {
+                addEdge(c1, target);
+            }
+        }
+
+        for (Character* c2 : group2) {
+            Character* target = findTarget(c2, group1, strategy);
+            if (target) {
+                addEdge(c2, target);
+            }
+        }
+    }
+
+    void displayGraph() const {
+        cout << "Focus targets for this round:" << endl;
+        for (const auto& pair : adjList) {
+            cout << pair.first->getName() << " focuses on: ";
+            if (pair.second.empty()) {
+                cout << "No target";
+            } else {
+                for (Character* target : pair.second) {
+                    cout << target->getName() << " ";
+                }
+            }
+            cout << endl;
+        }
+    }
+};
+
+void battleSimulation(BattleGraph& graph, vector<Character*>& group1, vector<Character*>& group2, FocusStrategy strategy, int rounds, bool showLog) {
     int group1Wins = 0;
     int group2Wins = 0;
 
     srand(static_cast<unsigned>(time(0)));
 
     for (int i = 0; i < rounds; ++i) {
-        cout << "\nRound " << i + 1 << endl;
+        if (showLog) {
+            cout << "\nRound " << i + 1 << " - Target Focus:" << endl;
+        }
 
-        // Відновлення здоров'я персонажів перед новим раундом
+        graph.createEdgesBasedOnCriteria(group1, group2, strategy);
+
+        if (showLog) {
+            graph.displayGraph();
+        }
+
         for (Character* c : group1) c->resetHealth();
         for (Character* c : group2) c->resetHealth();
 
         bool roundOver = false;
 
         while (!roundOver) {
-            // Хід групи 1
             for (Character* attacker : group1) {
                 if (!attacker || !attacker->isAlive()) continue;
 
-                // Знайти динамічну ціль на основі стратегії
                 Character* defender = findTarget(attacker, group2, strategy);
-
-                // Якщо захисника не знайдено, група 1 виграє раунд
                 if (!defender) {
                     group1Wins++;
                     roundOver = true;
                     break;
                 }
 
-                // Атакуємо захисника
-                attacker->attack(*defender);
-                if (!defender->isAlive()) {
-                    continue;
-                }
+                string attackLog = attacker->attack(*defender);
+                if (showLog) cout << attackLog << endl;
 
-                // Випадковий шанс використати заклинання
-                if (!attacker->getAvailableSpells().empty() && rand() % 2 == 0 && attacker->getMana() >= attacker->getAvailableSpells()[0].getManaCost()) {
-                    attacker->castSpell(attacker->getAvailableSpells()[0], *defender);
-                    if (!defender->isAlive()) {
-                        continue;
+                string damageLog = defender->takeDamage(attacker->getDamagePotential());
+                if (showLog) cout << damageLog << endl;
+
+                if (!defender->isAlive()) continue;
+
+                if (!attacker->getAvailableSpells().empty() && rand() % 2 == 0) {
+                    Spell spell = Spell(attacker->getAvailableSpells().front());
+                    if (attacker->getMana() >= spell.getManaCost()) {
+                        string spellLog = attacker->castSpell(spell, *defender);
+                        if (showLog) cout << spellLog << endl;
+
+                        damageLog = defender->takeDamage(spell.getDamage());
+                        if (showLog) cout << damageLog << endl;
                     }
                 }
             }
 
             if (roundOver) break;
 
-            // Хід групи 2
             for (Character* attacker : group2) {
                 if (!attacker || !attacker->isAlive()) continue;
 
-                // Знайти динамічну ціль на основі стратегії
                 Character* defender = findTarget(attacker, group1, strategy);
-
-                // Якщо захисника не знайдено, група 2 виграє раунд
                 if (!defender) {
                     group2Wins++;
                     roundOver = true;
                     break;
                 }
 
-                // Атакуємо захисника
-                attacker->attack(*defender);
-                if (!defender->isAlive()) {
-                    continue;
-                }
+                string attackLog = attacker->attack(*defender);
+                if (showLog) cout << attackLog << endl;
 
-                // Випадковий шанс використати заклинання
-                if (!attacker->getAvailableSpells().empty() && rand() % 2 == 0 && attacker->getMana() >= attacker->getAvailableSpells()[0].getManaCost()) {
-                    attacker->castSpell(attacker->getAvailableSpells()[0], *defender);
-                    if (!defender->isAlive()) {
-                        continue;
+                string damageLog = defender->takeDamage(attacker->getDamagePotential());
+                if (showLog) cout << damageLog << endl;
+
+                if (!defender->isAlive()) continue;
+
+                if (!attacker->getAvailableSpells().empty() && rand() % 2 == 0) {
+                    Spell spell = Spell(attacker->getAvailableSpells().front());
+                    if (attacker->getMana() >= spell.getManaCost()) {
+                        string spellLog = attacker->castSpell(spell, *defender);
+                        if (showLog) cout << spellLog << endl;
+
+                        damageLog = defender->takeDamage(spell.getDamage());
+                        if (showLog) cout << damageLog << endl;
                     }
                 }
             }
@@ -640,10 +587,6 @@ void battleSimulation(BattleGraph& graph, vector<Character*>& group1, vector<Cha
     double probGroup2Win = static_cast<double>(group2Wins) / rounds * 100;
     cout << "Group 1 win probability: " << probGroup1Win << "%\n";
     cout << "Group 2 win probability: " << probGroup2Win << "%\n";
-
-    cout << "\nPress any key to return to the main menu...\n";
-    cin.ignore();
-    cin.get();
 }
 
 FocusStrategy chooseFocusStrategy() {
@@ -660,14 +603,12 @@ FocusStrategy chooseFocusStrategy() {
         case 3: return FocusStrategy::LowestDamage;
         case 4: return FocusStrategy::HighestDamage;
         default: 
-            cout << "Невірний вибір. Використовуємо за замовчуванням (Найменший HP).\n";
+            cout << "Invalid choice. Retutned to default (lowest HP)\n";
             return FocusStrategy::LowestHP;
     }
 }
 
 void mainMenu() {
-    CharacterManager manager;
-
     BattleGraph graph;
     vector<Character*> group1, group2;
 
@@ -675,7 +616,8 @@ void mainMenu() {
     FocusStrategy strategy = FocusStrategy::LowestHP;
 
     cout << "Welcome to the Battle Simulation!\n";
-    cout << "You can create characters for 2 grops and simulate battles between them!\n";
+    cout << "You can create characters for 2 groups and simulate battles between them!\n";
+    
     do {
         cout << "\nMain Menu:\n";
         cout << "1. Create character for Group 1\n";
@@ -687,46 +629,62 @@ void mainMenu() {
         choice = getValidatedInput("Enter your choice: ", 1, 6);
 
         switch (choice) {
-        case 1: {
-            cout << "\nCreating character for Group 1...\n";
-            Character* newCharacter = createCharacter();
-            if (newCharacter) {
-                manager.addCharacter(newCharacter);
-                group1.push_back(newCharacter);
+            case 1: {
+                cout << "\nCreating character for Group 1...\n";
+                Character* newCharacter = createCharacter();
+                if (newCharacter) {
+                    group1.push_back(newCharacter);
+                }
+                break;
             }
-            break;
-        }
-        case 2: {
-            cout << "\nCreating character for Group 2...\n";
-            Character* newCharacter = createCharacter();
-            if (newCharacter) {
-                manager.addCharacter(newCharacter);
-                group2.push_back(newCharacter);
+            case 2: {
+                cout << "\nCreating character for Group 2...\n";
+                Character* newCharacter = createCharacter();
+                if (newCharacter) {
+                    group2.push_back(newCharacter);
+                }
+                break;
             }
-            break;
-        }
-        case 3: {
-            cout << "\nDisplaying all characters:\n";
-            manager.displayGroupedCharacters(group1, group2);
-            break;
-        }
-        case 4: {
-            if (group1.empty() || group2.empty()) {
-                cout << "Both groups must have at least one character to start the battle!\n";
-            } else {
-                int rounds = getValidatedInput("Enter the number of rounds for the battle: ", 1, 100);  // Could be more
-                battleSimulation(graph, group1, group2, strategy, rounds);
+            case 3: {
+                cout << "\nDisplaying all characters:\n";
+                cout << "\n--- Group 1 ---\n";
+                for (const Character* character : group1) {
+                    character->display();
+                    cout << endl;
+                }
+                cout << "\n--- Group 2 ---\n";
+                for (const Character* character : group2) {
+                    character->display();
+                    cout << endl;
+                }
+                break;
             }
-            break;
-        }
-        case 5:
+            case 4: {
+                if (group1.empty() || group2.empty()) {
+                    cout << "Both groups must have at least one character to start the battle!\n";
+                } else {
+                    int rounds = getValidatedInput("Enter the number of rounds for the battle: ", 1, 100);
+                    int logChoice = getValidatedInput("Do you want a detailed battle log? (1 for Yes, 0 for No): ", 0, 1);
+                    bool showLog = logChoice == 1;
+                    battleSimulation(graph, group1, group2, strategy, rounds, showLog);
+                }
+                break;
+            }
+            case 5:
                 strategy = chooseFocusStrategy();
                 break;
-        case 6:
-            cout << "Exiting the program. Goodbye!\n";
-            break;
+            case 6:
+                cout << "Exiting the program. Goodbye!\n";
+                break;
         }
     } while (choice != 6);
+
+    for (Character* character : group1) {
+        delete character;
+    }
+    for (Character* character : group2) {
+        delete character;
+    }
 }
 
 int main() {
